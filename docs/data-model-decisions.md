@@ -43,4 +43,3 @@ Out of scope for Slice 2:
 - UUID vs bigint
 - case-insensitive email uniqueness strategy
 - exact timestamp defaults
-```

@@ -17,10 +17,8 @@ def create_user_endpoint(payload: UserCreate) -> UserRead:
     return user
 
 
-@router.get("/{user_id}", response_model=UserCreate, status_code=status.HTTP_200_OK)
+@router.get("/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK)
 def get_user_endpoint(user_id: str) -> UserRead:
-
-    # pdb.set_trace()
     user = get_user_by_id(user_id)
 
     if user is None:

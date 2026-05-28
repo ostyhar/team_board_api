@@ -24,7 +24,7 @@ def test_get_organization_after_creation() -> None:
     assert data.get("name") == "Acme Inc"
 
 
-def test_get_ivalid_organization_id_returns_404() -> None:
+def test_get_invalid_organization_id_returns_404() -> None:
     get_response = client.get("/organizations/bad_id")
     assert get_response.status_code == 404
     data = get_response.json()

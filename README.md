@@ -53,3 +53,81 @@ Expected response:
 ```json
 {"status": "ok"}
 ```
+
+## Local API smoke examples
+
+Start the app:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Create a dev-only user:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/users" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "alex@example.com",
+    "display_name": "Alex"
+  }'
+```
+
+Create a dev-only organization:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/organizations" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme Inc"
+  }'
+```
+
+Note: User and Organization endpoints are currently dev-only learning endpoints backed by temporary in-memory storage.
+```
+
+This is optional. If it feels like too much, skip it.
+
+---
+
+## Task 3 — Run verification
+
+Run:
+
+```bash
+ruff check . --fix
+ruff format .
+pytest
+```
+
+Expected:
+
+```text
+ruff passes
+format passes
+pytest passes with 14 tests or more
+```
+
+Then optionally run:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Manual smoke:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Expected:
+
+```json
+{"status":"ok"}
+```

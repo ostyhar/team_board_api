@@ -41,10 +41,10 @@ def test_invalid_user_payload() -> None:
 
 
 def test_duplicate_user() -> None:
-    payload = {"email": "anna@example.com", "display_name": "Anna"}
+    payload = {"email": "duplicate@example.com", "display_name": "Duplicate"}
     post_response_1 = client.post("/users", json=payload)
     post_response_2 = client.post("/users", json=payload)
 
     assert post_response_1.status_code == 201
     assert post_response_2.status_code == 409
-    assert post_response_2.json() == {"detail": "anna@example.com already exists"}
+    assert post_response_2.json() == {"detail": "duplicate@example.com already exists"}

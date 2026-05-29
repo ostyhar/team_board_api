@@ -5,13 +5,14 @@
 ## Current decision
 
 User is a global account/person.
+
 Organization is a tenant/company.
 
 Slice 2 user endpoints are development/learning endpoints, not a full authentication system.
 
 ## Users
 
-Initial fields:
+Initial domain fields:
 
 - id
 - email
@@ -19,36 +20,50 @@ Initial fields:
 - created_at
 - updated_at
 
+Current API response schema exposes:
+
+- id
+- email
+- display_name
+
+`created_at` and `updated_at` are part of the database model direction, but they are not yet exposed by the current dev-only API response schemas.
+
 ## Organizations
 
-Initial fields:
+Initial domain fields:
 
 - id
 - name
 - created_at
 - updated_at
 
+Current API response schema exposes:
+
+- id
+- name
+
+`created_at` and `updated_at` are part of the database model direction, but they are not yet exposed by the current dev-only API response schemas.
+
 ## Authentication boundary
 
-Out of scope for Slice 2:
+Out of scope for the current slice:
 
 - login
 - password hashing
 - JWT
 - OAuth
 - sessions
+- full registration flow
 
-## Open decisions
+Creating a `users` table does not mean TeamBoard has implemented authentication.
 
-- UUID vs bigint
-- case-insensitive email uniqueness strategy
-- exact timestamp defaults
+For now, `User` means a domain user/person in the TeamBoard system. Authentication will be introduced later as a separate planned slice.
 
 ## Slice 2 closeout decision
 
 Slice 2 implemented Users and Organizations at a dev-only learning level.
 
-Current implementation includes:
+Current Slice 2 implementation includes:
 
 - Pydantic request/response schemas;
 - validation helpers;
@@ -57,28 +72,210 @@ Current implementation includes:
 - temporary in-memory storage;
 - endpoint tests.
 
-This is intentional.
+This was intentional.
 
-The current Slice 2 endpoints are not a full authentication or registration system. They are development/learning endpoints used to practice API boundaries, validation, Pydantic schemas, service-layer structure, and tests.
+The Slice 2 endpoints are not a full authentication or registration system. They are development/learning endpoints used to practice API boundaries, validation, Pydantic schemas, service-layer structure, and tests.
 
-Database persistence for `users` and `organizations` is deferred until SQLAlchemy/Alembic/PostgreSQL integration is explicitly planned.
+At the end of Slice 2, database persistence for `users` and `organizations` was intentionally deferred until SQLAlchemy/Alembic/PostgreSQL integration was explicitly planned.
 
-Authentication is also deferred. Do not add JWT, login, OAuth, password hashing, sessions, or user registration flow yet.
+Authentication was also deferred. Do not add JWT, login, OAuth, password hashing, sessions, or user registration flow until explicitly planned.
 
-`organization_members` is not part of Slice 2. It belongs to Slice 3.
+`organization_members` was not part of Slice 2. It belongs to Slice 3.
 
-The current in-memory stores are temporary only:
+The Slice 2 in-memory stores are temporary only:
 
 - data is lost on app restart;
 - data is process-local;
 - data is not production persistence;
 - data is not the final concurrency-safe design.
 
-Future database work will revisit:
+## Day 5 database foundation decision
+
+Starting on Day 5, TeamBoard introduces PostgreSQL persistence with SQLAlchemy 2.x and Alembic.
+
+The first database tables are:
+
+- users;
+- organizations;
+- organization_members.
+
+This creates the persistence foundation for Slice 3.
+
+`organization_members` is the relationship between users and organizations. It is not a field on `users` or `organizations`.
+
+A user can belong to many organizations. An organization can have many users. Therefore, membership is modeled as a separate relationship table.
+
+The first `organization_members` model stores:
+
+- organization_id;
+- user_id;
+- role;
+- created_at;
+- updated_at.
+
+The first membership roles are:
+
+- owner;
+- admin;
+- member;
+- viewer.
+
+The initial role validation is represented with a database CHECK constraint.
+
+The first `organization_members` primary key is composite:
+
+```text
+PRIMARY KEY (organization_id, user_id)
+```
+
+This prevents duplicate membership rows for the same user in the same organization.
+
+The first database migration was created with Alembic and applied successfully to local PostgreSQL.
+
+The local PostgreSQL schema now includes:
+
+- alembic_version;
+- users;
+- organizations;
+- organization_members.
+
+## SQLAlchemy decision
+
+TeamBoard starts with synchronous SQLAlchemy 2.x.
+
+Reason:
+
+- simpler mental model while learning;
+- easier to understand sessions and transactions;
+- easier migration from in-memory services to database-backed services;
+- avoids adding async database complexity too early.
+
+Do not switch to async SQLAlchemy until it is explicitly planned.
+
+## Alembic decision
+
+Alembic is used for database schema migrations.
+
+Migrations are the source of truth for schema changes over time.
+
+Rules:
+
+- do not manually edit the database schema outside migrations for normal project work;
+- always review autogenerated migrations before applying them;
+- check table names, columns, primary keys, foreign keys, unique constraints, check constraints, and downgrade logic;
+- apply migrations with `alembic upgrade head`.
+
+## User database model decision
+
+The initial `users` table has:
+
+- id;
+- email;
+- display_name;
+- created_at;
+- updated_at.
+
+Current Day 5 decision:
+
+- `id` is UUID;
+- `email` is required;
+- `email` has a simple unique constraint;
+- `display_name` is required;
+- timestamps are required.
+
+The simple unique constraint on `email` is acceptable for the current learning phase because service code already normalizes email.
+
+Case-insensitive email uniqueness remains an open decision.
+
+Future options:
+
+- service-level normalization plus `UNIQUE(email)`;
+- unique expression index on `lower(email)`;
+- PostgreSQL `citext`.
+
+## Organization database model decision
+
+The initial `organizations` table has:
+
+- id;
+- name;
+- created_at;
+- updated_at.
+
+Current Day 5 decision:
+
+- `id` is UUID;
+- `name` is required;
+- timestamps are required;
+- no global unique constraint on `name`.
+
+Reason:
+
+Global organization-name uniqueness is a product decision and should not be added accidentally.
+
+Two real organizations may have the same or similar display names.
+
+Possible future identifiers:
+
+- organization slug;
+- organization handle;
+- verified domain;
+- billing account identifier.
+
+## OrganizationMember database model decision
+
+`organization_members` models the many-to-many relationship between users and organizations.
+
+Current Day 5 decision:
+
+- `organization_id` references `organizations.id`;
+- `user_id` references `users.id`;
+- `(organization_id, user_id)` is the composite primary key;
+- `role` is required;
+- `role` is constrained to `owner`, `admin`, `member`, `viewer`;
+- timestamps are required.
+
+This model prepares for future Slice 3 behavior:
+
+- create organization with owner membership;
+- add organization member;
+- list organization members;
+- reject duplicate membership;
+- validate membership role.
+
+Full authorization hardening is still out of scope. That belongs to a later slice.
+
+## Timestamp decision
+
+Use timezone-aware timestamps in PostgreSQL.
+
+Current database columns use:
+
+```text
+timestamp with time zone
+```
+
+Open timestamp decisions:
+
+- whether UUIDs should be generated by the app or by PostgreSQL;
+- whether `created_at` should have a database default;
+- whether `updated_at` should be updated by application code, SQLAlchemy `onupdate`, or a database trigger.
+
+Current Day 5 state:
+
+- SQLAlchemy models can provide app-side defaults;
+- the database schema does not yet define DB-side defaults for UUID or timestamps.
+
+This is acceptable for the current foundation step, but should be revisited before production-style persistence is considered complete.
+
+## Open decisions
 
 - UUID vs bigint;
 - DB-generated UUID vs app-generated UUID;
-- case-insensitive email uniqueness;
-- timestamp defaults;
-- organization name uniqueness;
-- database constraints and migrations.
+- case-insensitive email uniqueness strategy;
+- exact timestamp defaults;
+- `updated_at` update strategy;
+- organization name uniqueness strategy;
+- whether role should remain a CHECK constraint, become a PostgreSQL enum, or become a separate table;
+- when to migrate API services from in-memory storage to DB-backed behavior;
+- test database strategy.

@@ -12,10 +12,10 @@ class OrganizationMember(Base):
     __tablename__ = "organization_members"
 
     organization_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("organizations.is"), primary_key=True
+        PG_UUID(as_uuid=True), ForeignKey("organizations.id"), primary_key=True
     )
     user_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.is"), primary_key=True
+        PG_UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True
     )
     role: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -25,7 +25,9 @@ class OrganizationMember(Base):
         DateTime(timezone=True), nullable=False
     )
 
-    __table_args__ = CheckConstraint(
-        "role IN ('owner', 'admin', 'member', 'viewer')",
-        name="ck_organization_member_role",
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('owner', 'admin', 'member', 'viewer')",
+            name="ck_organization_member_role",
+        ),
     )
